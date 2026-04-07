@@ -1,0 +1,44 @@
+name: PR Branch Compliance Check
+
+on:
+  pull_request:
+    # 针对目标为 master 和 develop 的 PR 进行拦截与校验
+    branches:
+      - master
+      - develop
+
+jobs:
+  branch-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Check PR Branch Rules
+        run: |
+          TARGET_BRANCH="${{ github.base_ref }}"
+          SOURCE_BRANCH="${{ github.head_ref }}"
+
+          echo "🎯 目标分支 (Target): $TARGET_BRANCH"
+          echo "🚀 来源分支 (Source): $SOURCE_BRANCH"
+
+          # 规则 1: 如果目标是 master，只允许 release/* （或者 hotfix/* 视需要）合并
+          if [ "$TARGET_BRANCH" = "master" ]; then
+            if [[ ! "$SOURCE_BRANCH" =~ ^release/.* ]]; then
+              echo "::error::❌ 违反合并规范：master 分支只接受来自 release/* 的合并！当前 PR 来源为 $SOURCE_BRANCH"
+              exit 1
+            fi
+            echo "✅ 来源分支规范校验通过。"
+          fi
+
+          # 规则 2: 如果目标是 develop，拒绝 master 倒灌，且要求来源必须是特性/修复类分支
+          if [ "$TARGET_BRANCH" = "develop" ]; then
+            if [ "$SOURCE_BRANCH" = "master" ]; then
+              echo "::error::❌ 违反合并规范：严禁将 master 直接反向合并到 develop！"
+              exit 1
+            fi
+            
+            # 使用正则匹配允许的源分支前缀
+            if [[ ! "$SOURCE_BRANCH" =~ ^(feat|fix|ref|docs|chore|test|release)/.* ]]; then
+              echo "::error::❌ 违反合并规范：合并到 develop 的分支必须符合规范前缀 (如 feat/, fix/ 等)！当前为 $SOURCE_BRANCH"
+              exit 1
+            fi
+            echo "✅ 来源分支规范校验通过。"
+          fi

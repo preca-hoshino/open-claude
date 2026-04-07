@@ -1,0 +1,45 @@
+{
+  // ==========================================
+  // 格式化与保存行为 (Formatting & Save Behavior)
+  // ==========================================
+  // 指定 Biome 作为所有支持文件的默认代码格式化工具
+  "editor.defaultFormatter": "biomejs.biome",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    // 保存时自动修复 ESLint 错误
+    "source.fixAll.eslint": "explicit",
+    // 保存时使用 Biome 整理 Imports (如果需要)
+    "source.organizeImports.biome": "explicit"
+  },
+
+  // ==========================================
+  // Biome 插件配置
+  // ==========================================
+  // 必须：确保 Biome 只在有配置文件 (biome.json/c) 的项目中运行，防止污染无配置项目
+  "biome.requireConfiguration": true,
+
+  // ==========================================
+  // ESLint 插件配置 (dbaeumer.vscode-eslint)
+  // ==========================================
+  // 必须：启用 Flat Config (eslint.config.js) 支持
+  "eslint.useFlatConfig": true,
+  // 自动推断当前项目为其工作目录，使用本地包
+  "eslint.workingDirectories": [
+    { "mode": "auto" }
+  ],
+  // 指定 ESLint 验证的语言
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+
+  // ==========================================
+  // TypeScript 插件配置 (内置)
+  // ==========================================
+  // 必须：强制 VSCode 使用当前项目 node_modules 下安装的 typescript 版本，而不是 VSCode 内置版本
+  // 这确保了编辑器报错和 `bun run check:types` 时使用的 typescript 版本与规则完全一致
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

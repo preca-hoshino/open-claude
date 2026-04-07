@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/providers/**/index.ts", "src/users/**/index.ts", "tests/helpers/mock-server.ts"],
+  "project": ["src/**/*.ts", "src/**/*.tsx"],
+  "ignoreExportsUsedInFile": true,
+  "ignore": ["src/types/**", "node_modules/**", "vendor/**", "shims/**"],
+  "ignoreBinaries": ["security", "ps", "tasklist", "findstr", "ip", "gh"],
+  "ignoreDependencies": [],
+  "rules": {
+    "files": "off",
+    "exports": "off",
+    "types": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "enumMembers": "off",
+    "duplicates": "off",
+    "unresolved": "off",
+    "unlisted": "off",
+    "binaries": "off",
+    "dependencies": "off"
+  }
+}

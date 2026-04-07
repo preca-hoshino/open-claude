@@ -1,0 +1,90 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "maxSize": 60000000,
+    "includes": ["**/__test__/**", "**/*__test__*.*", "**/*.test.*"]
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 120,
+    "attributePosition": "auto",
+    "bracketSameLine": false,
+    "bracketSpacing": true,
+    "expand": "auto",
+    "useEditorconfig": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error",
+        "useDefaultParameterLast": "error",
+        "useBlockStatements": "error",
+        "useConsistentArrayType": "error",
+        "useFilenamingConvention": "error",
+        "useNamingConvention": "error",
+        "noImplicitBoolean": "error",
+        "useEnumInitializers": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "error",
+        "noEmptyBlockStatements": "error",
+        "noAssignInExpressions": "error"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "error",
+        "noBannedTypes": "error",
+        "useSimplifiedLogicExpression": "error",
+        "noUselessTypeConstraint": "error"
+      },
+      "performance": {
+        "noDelete": "error",
+        "noAccumulatingSpread": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "jsxQuoteStyle": "single",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "es5",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSameLine": false,
+      "quoteStyle": "single",
+      "attributePosition": "auto",
+      "bracketSpacing": true
+    },
+    "globals": ["exports"]
+  },
+  "html": {
+    "formatter": {
+      "indentScriptAndStyle": false,
+      "selfCloseVoidElements": "always"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}
