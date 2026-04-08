@@ -1,7 +1,7 @@
-import { feature } from 'bun:bundle'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { logError } from '../utils/log.js'
+import { isTranscriptClassifierEnabled } from '../utils/permissions/autoModeState.js'
 import { getAutoModeEnabledState } from '../utils/permissions/permissionSetup.js'
 import {
   getSettingsForSource,
@@ -23,7 +23,7 @@ import {
  * 'enabled'), but the guard makes it safe regardless.
  */
 export function resetAutoModeOptInForDefaultOffer(): void {
-  if (feature('TRANSCRIPT_CLASSIFIER')) {
+  if (isTranscriptClassifierEnabled()) {
     const config = getGlobalConfig()
     if (config.hasResetAutoModeOptInForDefaultOffer) return
     if (getAutoModeEnabledState() !== 'enabled') return

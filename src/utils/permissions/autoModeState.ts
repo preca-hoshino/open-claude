@@ -1,5 +1,15 @@
+import { feature } from 'bun:bundle'
+
 // Auto mode state functions — lives in its own module so callers can
 // conditionally require() it on feature('TRANSCRIPT_CLASSIFIER').
+// Or use isTranscriptClassifierEnabled() for testable feature checks.
+
+export function isTranscriptClassifierEnabled(): boolean {
+  if (feature('TRANSCRIPT_CLASSIFIER')) {
+    return true
+  }
+  return false
+}
 
 let autoModeActive = false
 let autoModeFlagCli = false
