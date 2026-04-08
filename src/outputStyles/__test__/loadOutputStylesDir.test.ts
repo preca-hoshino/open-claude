@@ -1,5 +1,4 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from 'bun:test';
-import { basename } from 'path';
+import { describe, expect, it, mock, beforeEach } from 'bun:test';
 
 // Mock dependencies
 const mockLoadMarkdownFilesForSubdir = mock();
@@ -51,13 +50,13 @@ describe('loadOutputStylesDir', () => {
           filePath: 'path/to/style1.md',
           frontmatter: { name: 'Style 1', description: 'Desc 1', 'keep-coding-instructions': true },
           content: 'Prompt 1',
-          source: 'project' as const,
+          source: 'projectSettings' as const,
         },
         {
           filePath: 'path/to/style2.md',
           frontmatter: {},
           content: 'Prompt 2',
-          source: 'user' as const,
+          source: 'userSettings' as const,
         },
       ];
 
@@ -72,14 +71,14 @@ describe('loadOutputStylesDir', () => {
         name: 'Style 1',
         description: 'Desc 1',
         prompt: 'Prompt 1',
-        source: 'project',
+        source: 'projectSettings',
         keepCodingInstructions: true,
       });
       expect(styles[1]).toEqual({
         name: 'style2',
         description: 'Extracted Description',
         prompt: 'Prompt 2',
-        source: 'user',
+        source: 'userSettings',
         keepCodingInstructions: undefined,
       });
 
@@ -92,19 +91,19 @@ describe('loadOutputStylesDir', () => {
           filePath: 't1.md',
           frontmatter: { 'keep-coding-instructions': 'true' },
           content: 'c',
-          source: 'project' as const,
+          source: 'projectSettings' as const,
         },
         {
           filePath: 't2.md',
           frontmatter: { 'keep-coding-instructions': false },
           content: 'c',
-          source: 'project' as const,
+          source: 'projectSettings' as const,
         },
         {
           filePath: 't3.md',
           frontmatter: { 'keep-coding-instructions': 'false' },
           content: 'c',
-          source: 'project' as const,
+          source: 'projectSettings' as const,
         },
       ];
 
@@ -124,7 +123,7 @@ describe('loadOutputStylesDir', () => {
           filePath: 'style.md',
           frontmatter: { 'force-for-plugin': true },
           content: 'c',
-          source: 'project' as const,
+          source: 'projectSettings' as const,
         },
       ];
 
@@ -133,10 +132,9 @@ describe('loadOutputStylesDir', () => {
 
       await getOutputStyleDirStyles('cwd');
 
-      expect(mockLogForDebugging).toHaveBeenCalledWith(
-        expect.stringContaining('has force-for-plugin set'),
-        { level: 'warn' }
-      );
+      expect(mockLogForDebugging).toHaveBeenCalledWith(expect.stringContaining('has force-for-plugin set'), {
+        level: 'warn',
+      });
     });
 
     it('should handle errors in individual styles and skip them', async () => {
@@ -145,21 +143,21 @@ describe('loadOutputStylesDir', () => {
           filePath: 'valid.md',
           frontmatter: { name: 'Valid' },
           content: 'c',
-          source: 'project' as const,
+          source: 'projectSettings' as const,
         },
         {
           filePath: 'invalid.md',
           frontmatter: null as any, // This will trigger error in basename(filePath) or frontmatter access
           content: 'c',
-          source: 'project' as const,
+          source: 'projectSettings' as const,
         },
       ];
 
       mockLoadMarkdownFilesForSubdir.mockResolvedValue(mockFiles);
-      
+
       // We need to trigger an error inside the map's try-catch
       // Let's make basename throw or something. Actually, frontmatter is null, so frontmatter['name'] will throw.
-      
+
       const styles = await getOutputStyleDirStyles('cwd');
 
       expect(styles).toHaveLength(1);
