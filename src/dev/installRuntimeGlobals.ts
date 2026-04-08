@@ -12,7 +12,7 @@ type MacroConfig = {
   VERSION_CHANGELOG?: string
 }
 
-function readLocalVersion(): string {
+export function readLocalVersion(): string {
   try {
     const packageJson = JSON.parse(
       readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
@@ -28,11 +28,11 @@ function readLocalVersion(): string {
   return '2.1.88-source.0'
 }
 
-function getDefaultDevConfigDir(): string {
+export function getDefaultDevConfigDir(): string {
   return process.env.CLAUDE_CODE_DEV_CONFIG_DIR || join(process.cwd(), '.claude-dev')
 }
 
-function readDefaultCredentials(): string | null {
+export function readDefaultCredentials(): string | null {
   const hostCredentialsPath = join(process.env.HOME || '', '.claude', '.credentials.json')
   if (process.env.HOME && existsSync(hostCredentialsPath)) {
     return readFileSync(hostCredentialsPath, 'utf8')
@@ -46,7 +46,7 @@ function readDefaultCredentials(): string | null {
   return JSON.stringify(credentials)
 }
 
-function configureDevConfigDir(): void {
+export function configureDevConfigDir(): void {
   if (process.env.CLAUDE_CONFIG_DIR) {
     return
   }
@@ -66,20 +66,24 @@ function configureDevConfigDir(): void {
   process.env.CLAUDE_CONFIG_DIR = devConfigDir
 }
 
-configureDevConfigDir()
+export function installRuntimeGlobals(): void {
+  configureDevConfigDir()
 
-const defaults: MacroConfig = {
-  VERSION: process.env.CLAUDE_CODE_DEV_VERSION || readLocalVersion(),
-  BUILD_TIME: process.env.CLAUDE_CODE_DEV_BUILD_TIME,
-  PACKAGE_URL: '@anthropic-ai/claude-code',
-  NATIVE_PACKAGE_URL: process.env.CLAUDE_CODE_NATIVE_PACKAGE_URL,
-  FEEDBACK_CHANNEL: 'https://github.com/anthropics/claude-code/issues',
-  ISSUES_EXPLAINER:
-    'open an issue at https://github.com/anthropics/claude-code/issues',
-  VERSION_CHANGELOG: process.env.CLAUDE_CODE_DEV_CHANGELOG || '',
+  const defaults: MacroConfig = {
+    VERSION: process.env.CLAUDE_CODE_DEV_VERSION || readLocalVersion(),
+    BUILD_TIME: process.env.CLAUDE_CODE_DEV_BUILD_TIME,
+    PACKAGE_URL: '@anthropic-ai/claude-code',
+    NATIVE_PACKAGE_URL: process.env.CLAUDE_CODE_NATIVE_PACKAGE_URL,
+    FEEDBACK_CHANNEL: 'https://github.com/anthropics/claude-code/issues',
+    ISSUES_EXPLAINER:
+      'open an issue at https://github.com/anthropics/claude-code/issues',
+    VERSION_CHANGELOG: process.env.CLAUDE_CODE_DEV_CHANGELOG || '',
+  }
+
+  globalThis.MACRO = {
+    ...defaults,
+    ...(typeof globalThis.MACRO === 'undefined' ? {} : globalThis.MACRO),
+  }
 }
 
-globalThis.MACRO = {
-  ...defaults,
-  ...(typeof globalThis.MACRO === 'undefined' ? {} : globalThis.MACRO),
-}
+installRuntimeGlobals()
