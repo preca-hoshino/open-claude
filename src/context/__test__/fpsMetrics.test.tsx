@@ -1,7 +1,19 @@
 import { describe, expect, it, mock } from 'bun:test';
 import * as React from 'react';
 
-const memoArray = new Array(20).fill(Symbol('uninitialized'));
+// Must import original React up here because mock.module happens first
+const OriginalReact = await import('react');
+
+let mockContextValue: any = undefined;
+
+mock.module('react', () => {
+  return {
+    ...OriginalReact,
+    useContext: () => mockContextValue,
+  };
+});
+
+const memoArray = new Array(20).fill(Symbol.for("react.memo_cache_sentinel"));
 mock.module('react/compiler-runtime', () => ({
   c: (size: number) => memoArray,
 }));
@@ -28,8 +40,13 @@ describe('fpsMetrics', () => {
     expect(element2).toEqual(element1);
   });
 
-  it('useFpsMetrics calls useContext and throws when outside component', () => {
-    // Calling useContext outside a functional component throws an error in React
-    expect(() => useFpsMetrics()).toThrow();
+  it('useFpsMetrics gets context', () => {
+    mockContextValue = undefined;
+    expect(useFpsMetrics()).toBeUndefined();
+
+    // With value
+    const val = () => ({ fps: 120 });
+    mockContextValue = val;
+    expect(useFpsMetrics()).toBe(val);
   });
 });
