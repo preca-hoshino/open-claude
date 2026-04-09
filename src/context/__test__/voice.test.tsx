@@ -1,28 +1,28 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, expect, it, mock } from 'bun:test';
-import * as React from 'react';
 
 const OriginalReact = await import('react');
 
 let mockContextValue: any = null;
 
-let stateCache: any = undefined;
+let stateCache: any;
 mock.module('react', () => {
   return {
     ...OriginalReact,
     useContext: () => mockContextValue,
-    useSyncExternalStore: (subscribe: any, getSnapshot: any) => getSnapshot(),
+    useSyncExternalStore: (_subscribe: any, getSnapshot: any) => getSnapshot(),
     useState: (init: any) => {
       if (stateCache === undefined) {
         stateCache = typeof init === 'function' ? init() : init;
       }
-      return [stateCache, () => {}];
-    }
+      return [stateCache, () => undefined];
+    },
   };
 });
 
-const memoArray = new Array(20).fill(Symbol.for("react.memo_cache_sentinel"));
+const memoArray = new Array(20).fill(Symbol.for('react.memo_cache_sentinel'));
 mock.module('react/compiler-runtime', () => ({
-  c: (size: number) => memoArray,
+  c: (_size: number) => memoArray,
 }));
 
 import { createStore } from '../../state/store.js';
@@ -31,7 +31,7 @@ import { VoiceProvider, useVoiceState, useSetVoiceState, useGetVoiceState } from
 describe('voice context', () => {
   it('VoiceProvider works', () => {
     stateCache = undefined;
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
     const element = VoiceProvider({ children: 'test' }) as any;
     expect(element.type).toBeDefined();
 
@@ -52,11 +52,11 @@ describe('voice context', () => {
       voiceError: null,
       voiceInterimTranscript: '',
       voiceAudioLevels: [],
-      voiceWarmingUp: false
+      voiceWarmingUp: false,
     });
-    
+
     mockContextValue = store;
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
 
     // useSetVoiceState
     const set = useSetVoiceState();
