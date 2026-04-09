@@ -1,33 +1,34 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, expect, it, mock } from 'bun:test';
-import * as React from 'react';
 
 const OriginalReact = await import('react');
 
 let mockContextValue: any = null;
-let effectFns: Function[] = [];
-let layoutEffectFns: Function[] = [];
+let effectFns: any[] = [];
+let layoutEffectFns: any[] = [];
 
 mock.module('react', () => {
   return {
     ...OriginalReact,
     useContext: () => mockContextValue,
-    useEffect: (fn: Function) => effectFns.push(fn),
-    useLayoutEffect: (fn: Function) => layoutEffectFns.push(fn),
+    useEffect: (fn: any) => effectFns.push(fn),
+    useLayoutEffect: (fn: any) => layoutEffectFns.push(fn),
   };
 });
 
-const memoArray = new Array(20).fill(Symbol.for("react.memo_cache_sentinel"));
+const memoArray = new Array(20).fill(Symbol.for('react.memo_cache_sentinel'));
 mock.module('react/compiler-runtime', () => ({
-  c: (size: number) => memoArray,
+  c: (_size: number) => memoArray,
 }));
 
 let mockAppStateStore = new Set<string>();
 
 mock.module('../../state/AppState.js', () => ({
+  // biome-ignore lint/style/useNamingConvention: mock
   AppStoreContext: {},
-  useAppState: (selector: Function) => {
+  useAppState: (selector: any) => {
     return selector({ activeOverlays: mockAppStateStore });
-  }
+  },
 }));
 
 import { useRegisterOverlay, useIsOverlayActive, useIsModalOverlayActive } from '../overlayContext.js';
@@ -36,8 +37,8 @@ describe('overlayContext', () => {
   it('useRegisterOverlay works and registers/unregisters effects', () => {
     effectFns = [];
     layoutEffectFns = [];
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
-    
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
+
     // Test that when disabled it does nothing
     let prevActive = new Set(['other']);
     let setStateInjected = mock((setter: any) => {
@@ -59,12 +60,14 @@ describe('overlayContext', () => {
     expect(cleanup).toBeUndefined(); // disabled returns early
 
     const layoutCleanup = layoutEffectFns[0]();
-    if (layoutCleanup) layoutCleanup(); // disabled returns early
+    if (typeof layoutCleanup === 'function') {
+      layoutCleanup();
+    } // disabled returns early
 
     // Test when setAppState is missing
     effectFns = [];
     layoutEffectFns = [];
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
     mockContextValue = {}; // no setState
     useRegisterOverlay('no-store', true);
     expect(effectFns[0]()).toBeUndefined();
@@ -72,8 +75,8 @@ describe('overlayContext', () => {
     // Test enabled
     effectFns = [];
     layoutEffectFns = [];
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
-    
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
+
     setStateInjected = mock((setter: any) => {
       if (typeof setter === 'function') {
         prevActive = setter({ activeOverlays: prevActive }).activeOverlays;
@@ -84,9 +87,9 @@ describe('overlayContext', () => {
     mockContextValue = { setState: setStateInjected };
 
     useRegisterOverlay('my-overlay', true);
-    
+
     expect(effectFns.length).toBe(1);
-    
+
     const cleanupEnabled = effectFns[0]();
     expect(prevActive.has('my-overlay')).toBe(true);
 
