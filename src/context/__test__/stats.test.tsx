@@ -1,48 +1,42 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type, sonarjs/no-unused-vars */
 import { describe, expect, it, mock, afterAll } from 'bun:test';
-import * as React from 'react';
 
 const OriginalReact = await import('react');
 
 let mockContextValue: any = null;
-let effectFns: Function[] = [];
+let effectFns: any[] = [];
 
 mock.module('react', () => {
   return {
     ...OriginalReact,
     useContext: () => mockContextValue,
     useCallback: (fn: any) => fn,
-    useEffect: (fn: Function) => effectFns.push(fn),
-    useMemo: (fn: Function) => fn(),
+    useEffect: (fn: any) => effectFns.push(fn),
+    useMemo: (fn: any) => fn(),
   };
 });
 
-const memoArray = new Array(20).fill(Symbol.for("react.memo_cache_sentinel"));
+const memoArray = new Array(20).fill(Symbol.for('react.memo_cache_sentinel'));
 mock.module('react/compiler-runtime', () => ({
-  c: (size: number) => memoArray,
+  c: (_size: number) => memoArray,
 }));
 
 let mockSaveCurrentProjectConfig: any;
 mock.module('../../utils/config.js', () => ({
-  saveCurrentProjectConfig: (fn: any) => { mockSaveCurrentProjectConfig = fn; }
+  saveCurrentProjectConfig: (fn: any) => {
+    mockSaveCurrentProjectConfig = fn;
+  },
 }));
 
 const processMock = {
-  events: new Map<string, Function>(),
-  on: (event: string, fn: Function) => processMock.events.set(event, fn),
-  off: (event: string, fn: Function) => processMock.events.delete(event),
+  events: new Map<string, any>(),
+  on: (event: string, fn: any) => processMock.events.set(event, fn),
+  off: (event: string, _fn: any) => processMock.events.delete(event),
 };
 const originalProcess = global.process;
 global.process = { ...originalProcess, on: processMock.on, off: processMock.off } as any;
 
-import { 
-  createStatsStore,
-  StatsProvider, 
-  useStats,
-  useCounter,
-  useGauge,
-  useTimer,
-  useSet
-} from '../stats.js';
+import { createStatsStore, StatsProvider, useStats, useCounter, useGauge, useTimer, useSet } from '../stats.js';
 
 describe('stats context', () => {
   afterAll(() => {
@@ -51,7 +45,7 @@ describe('stats context', () => {
 
   it('createStatsStore works', () => {
     const store = createStatsStore();
-    
+
     // counter
     store.increment('c1');
     store.increment('c1', 2);
@@ -83,20 +77,20 @@ describe('stats context', () => {
     const store = createStatsStore();
     // 2000 means > RESERVOIR_SIZE (1024)
     for (let i = 0; i < 2000; i++) {
-        store.observe('timer', i);
+      store.observe('timer', i);
     }
     const all = store.getAll();
     expect(all.timer_count).toBe(2000);
     // count > 0 is true, hit reservoir truncation
   });
-  
+
   it('StatsProvider works and mounts flush on exit', () => {
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
     effectFns = [];
     processMock.events.clear();
     mockSaveCurrentProjectConfig = null;
 
-    const storeProp = null; // internal store
+    const _storeProp = null; // internal store
     const element = StatsProvider({ children: 'test' }) as any;
     expect(element.type).toBeDefined();
 
@@ -108,7 +102,8 @@ describe('stats context', () => {
     const internalStore = element.props.value;
     internalStore.increment('some_metric');
     processMock.events.get('exit')?.();
-    
+
+    // biome-ignore lint/style/useNamingConvention: test
     expect(mockSaveCurrentProjectConfig({ prev: 1 })).toEqual({ prev: 1, lastSessionMetrics: { some_metric: 1 } });
 
     cleanup();
@@ -133,7 +128,7 @@ describe('stats context', () => {
   it('hooks work inside provider', () => {
     const store = createStatsStore();
     mockContextValue = store;
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
 
     useCounter('c1')();
     useCounter('c2')(2);
