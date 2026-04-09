@@ -1,15 +1,15 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, expect, it, mock, beforeEach, afterEach } from 'bun:test';
-import * as React from 'react';
 
 const OriginalReact = await import('react');
 
-let effectFns: Function[] = [];
+let effectFns: any[] = [];
 
 mock.module('react', () => {
   return {
     ...OriginalReact,
     useCallback: (fn: any) => fn,
-    useEffect: (fn: Function) => effectFns.push(fn),
+    useEffect: (fn: any) => effectFns.push(fn),
   };
 });
 
@@ -18,34 +18,38 @@ let currentState: any = { notifications: { current: null, queue: [] } };
 mock.module('../../state/AppState.js', () => ({
   useAppStateStore: () => ({ getState: () => currentState }),
   useSetAppState: () => (updater: any) => {
-      if (typeof updater === 'function') {
-        currentState = updater(currentState);
-      } else {
-        currentState = updater;
-      }
-  }
+    if (typeof updater === 'function') {
+      currentState = updater(currentState);
+    } else {
+      currentState = updater;
+    }
+  },
 }));
 
-const setTimeoutFns: {id: number, fn: any, args: any[], cancelled: boolean}[] = [];
-const originalSetTimeout = global.setTimeout;
-const originalClearTimeout = global.clearTimeout;
+const setTimeoutFns: { id: number; fn: any; args: any[]; cancelled: boolean }[] = [];
+const _originalSetTimeout = global.setTimeout;
+const _originalClearTimeout = global.clearTimeout;
 
-global.setTimeout = (fn: any, duration: any, ...args: any[]) => {
-    const id = setTimeoutFns.length + 1;
-    setTimeoutFns.push({ id, fn, args, cancelled: false });
-    return id as any;
+(global as any).setTimeout = (fn: any, _duration: any, ...args: any[]) => {
+  const id = setTimeoutFns.length + 1;
+  setTimeoutFns.push({ id, fn, args, cancelled: false });
+  return id as any;
 };
-global.clearTimeout = (id: any) => {
-    const obj = setTimeoutFns.find((o: any) => o.id === id);
-    if (obj) obj.cancelled = true;
+(global as any).clearTimeout = (id: any) => {
+  const obj = setTimeoutFns.find((o: any) => o.id === id);
+  if (obj !== undefined) {
+    obj.cancelled = true;
+  }
 };
 
 function runTimeouts() {
-    const fns = [...setTimeoutFns];
-    setTimeoutFns.length = 0;
-    for (const {fn, args, cancelled} of fns) {
-        if (!cancelled) fn(...args);
+  const fns = [...setTimeoutFns];
+  setTimeoutFns.length = 0;
+  for (const { fn, args, cancelled } of fns) {
+    if (!cancelled) {
+      fn(...args);
     }
+  }
 }
 
 import { useNotifications, getNext } from '../notifications.js';
@@ -62,20 +66,16 @@ describe('notifications context', () => {
   });
 
   it('getNext works', () => {
-    const q: any[] = [
-        { priority: 'low' },
-        { priority: 'immediate' },
-        { priority: 'medium' }
-    ];
+    const q: any[] = [{ priority: 'low' }, { priority: 'immediate' }, { priority: 'medium' }];
     expect(getNext(q)?.priority).toBe('immediate');
     expect(getNext([])).toBeUndefined();
   });
 
   it('useNotifications mount processQueue', () => {
     currentState.notifications.queue.push({ key: 'init', priority: 'low' });
-    const { addNotification } = useNotifications();
+    useNotifications();
     expect(effectFns.length).toBe(1);
-    
+
     // Call effect manually to simulate mount
     effectFns[0]();
 
@@ -86,7 +86,7 @@ describe('notifications context', () => {
 
   it('addNotification standard queue', () => {
     const { addNotification } = useNotifications();
-    
+
     addNotification({ key: 'n1', priority: 'low', text: '1' } as any);
     expect(currentState.notifications.current.key).toBe('n1');
 
@@ -100,7 +100,7 @@ describe('notifications context', () => {
 
   it('addNotification immediate', () => {
     const { addNotification } = useNotifications();
-    
+
     addNotification({ key: 'n1', priority: 'low' } as any);
     expect(currentState.notifications.current.key).toBe('n1');
 
@@ -131,21 +131,21 @@ describe('notifications context', () => {
   it('addNotification fold works for queue', () => {
     const { addNotification } = useNotifications();
     addNotification({ key: 'n1', priority: 'low' } as any);
-    addNotification({ 
-        key: 'foldable', 
-        priority: 'low', 
-        text: 'A',
-        fold: (acc: any, incoming: any) => ({ ...acc, text: acc.text + incoming.text })
+    addNotification({
+      key: 'foldable',
+      priority: 'low',
+      text: 'A',
+      fold: (acc: any, incoming: any) => ({ ...acc, text: acc.text + incoming.text }),
     } as any);
 
     expect(currentState.notifications.queue[0].text).toBe('A');
 
     // add again to trigger fold in queue
-    addNotification({ 
-        key: 'foldable', 
-        priority: 'low', 
-        text: 'B',
-        fold: (acc: any, incoming: any) => ({ ...acc, text: acc.text + incoming.text })
+    addNotification({
+      key: 'foldable',
+      priority: 'low',
+      text: 'B',
+      fold: (acc: any, incoming: any) => ({ ...acc, text: acc.text + incoming.text }),
     } as any);
 
     expect(currentState.notifications.queue[0].text).toBe('AB');
@@ -153,21 +153,21 @@ describe('notifications context', () => {
 
   it('addNotification fold works for current', () => {
     const { addNotification } = useNotifications();
-    addNotification({ 
-        key: 'foldable', 
-        priority: 'low', 
-        text: 'A',
-        fold: (acc: any, incoming: any) => ({ ...acc, text: acc.text + incoming.text })
+    addNotification({
+      key: 'foldable',
+      priority: 'low',
+      text: 'A',
+      fold: (acc: any, incoming: any) => ({ ...acc, text: acc.text + incoming.text }),
     } as any);
 
     expect(currentState.notifications.current.text).toBe('A');
 
     // add again to trigger fold in current
-    addNotification({ 
-        key: 'foldable', 
-        priority: 'low', 
-        text: 'B',
-        fold: (acc: any, incoming: any) => ({ ...acc, text: acc.text + incoming.text })
+    addNotification({
+      key: 'foldable',
+      priority: 'low',
+      text: 'B',
+      fold: (acc: any, incoming: any) => ({ ...acc, text: acc.text + incoming.text }),
     } as any);
 
     expect(currentState.notifications.current.text).toBe('AB');
@@ -176,7 +176,7 @@ describe('notifications context', () => {
   it('addNotification sets timeout and clears it', () => {
     const { addNotification } = useNotifications();
     addNotification({ key: 'n1', priority: 'low', timeoutMs: 1000 } as any);
-    
+
     // Simulate timeout manually
     runTimeouts();
     expect(currentState.notifications.current).toBeNull();
@@ -191,17 +191,17 @@ describe('notifications context', () => {
 
   it('addNotification invalidates works', () => {
     const { addNotification } = useNotifications();
-    
+
     // Add current
     addNotification({ key: 'n1', priority: 'low' } as any);
     // Add to queue
     addNotification({ key: 'n2', priority: 'medium' } as any);
-    
+
     // Add a new notification that invalidates n1 and n2
-    addNotification({ 
-        key: 'n3', 
-        priority: 'high',
-        invalidates: ['n1', 'n2'] 
+    addNotification({
+      key: 'n3',
+      priority: 'high',
+      invalidates: ['n1', 'n2'],
     } as any);
 
     // Current should be null (since invalidatesCurrent is true), queue will have n3
