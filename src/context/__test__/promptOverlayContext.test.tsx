@@ -1,36 +1,36 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, expect, it, mock } from 'bun:test';
-import * as React from 'react';
 
 const OriginalReact = await import('react');
 
 let mockContextValue: any = null;
-let effectFns: Function[] = [];
+let effectFns: any[] = [];
 
 mock.module('react', () => {
   return {
     ...OriginalReact,
     useContext: () => mockContextValue,
-    useEffect: (fn: Function) => effectFns.push(fn),
-    useState: (initial: any) => [initial, () => {}],
+    useEffect: (fn: any) => effectFns.push(fn),
+    useState: (initial: any) => [initial, () => undefined],
   };
 });
 
-const memoArray = new Array(20).fill(Symbol.for("react.memo_cache_sentinel"));
+const memoArray = new Array(20).fill(Symbol.for('react.memo_cache_sentinel'));
 mock.module('react/compiler-runtime', () => ({
-  c: (size: number) => memoArray,
+  c: (_size: number) => memoArray,
 }));
 
-import { 
-  PromptOverlayProvider, 
-  usePromptOverlay, 
-  usePromptOverlayDialog, 
-  useSetPromptOverlay, 
-  useSetPromptOverlayDialog 
+import {
+  PromptOverlayProvider,
+  usePromptOverlay,
+  usePromptOverlayDialog,
+  useSetPromptOverlay,
+  useSetPromptOverlayDialog,
 } from '../promptOverlayContext.js';
 
 describe('promptOverlayContext', () => {
   it('PromptOverlayProvider works', () => {
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
     const element = PromptOverlayProvider({ children: 'test' }) as any;
     expect(element.type).toBeDefined();
 
@@ -40,8 +40,8 @@ describe('promptOverlayContext', () => {
   });
 
   it('usePromptOverlay works', () => {
-    mockContextValue = { suggestions: [] };
-    expect(usePromptOverlay()).toEqual({ suggestions: [] });
+    mockContextValue = { suggestions: [], selectedSuggestion: 0 };
+    expect(usePromptOverlay()).toEqual({ suggestions: [], selectedSuggestion: 0 });
   });
 
   it('usePromptOverlayDialog works', () => {
@@ -51,8 +51,8 @@ describe('promptOverlayContext', () => {
 
   it('useSetPromptOverlay works', () => {
     effectFns = [];
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
-    
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
+
     // Testing missing context
     mockContextValue = null;
     useSetPromptOverlay({ suggestions: [], selectedSuggestion: 0 });
@@ -66,17 +66,18 @@ describe('promptOverlayContext', () => {
 
     // Testing present context
     effectFns = [];
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
-    const setMock = mock((val: any) => {});
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
+    const setMock = mock((_val: any) => undefined);
     mockContextValue = setMock;
 
-    const payload = { suggestions: [{ type: 'command', id: 'a', title: 'test', description: '' }], selectedSuggestion: 1 };
-    
-    // @ts-ignore
+    const payload = {
+      suggestions: [{ type: 'command', id: 'a', title: 'test', description: '' }],
+      selectedSuggestion: 1,
+    };
+
     useSetPromptOverlay(payload);
-    const cleanup = effectFns[effectFns.length-1]();
-    
-    // @ts-ignore
+    const cleanup = effectFns[effectFns.length - 1]();
+
     expect(setMock).toHaveBeenCalledWith(payload);
 
     // evaluate cleanup
@@ -84,13 +85,12 @@ describe('promptOverlayContext', () => {
     expect(setMock).toHaveBeenCalledWith(null);
 
     // Call again to hit compiler array cache
-    // @ts-ignore
     useSetPromptOverlay(payload);
   });
 
   it('useSetPromptOverlayDialog works', () => {
     effectFns = [];
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
 
     // Testing missing context
     mockContextValue = null;
@@ -99,13 +99,13 @@ describe('promptOverlayContext', () => {
 
     // Testing present context
     effectFns = [];
-    memoArray.fill(Symbol.for("react.memo_cache_sentinel"));
-    const setMock = mock((val: any) => {});
+    memoArray.fill(Symbol.for('react.memo_cache_sentinel'));
+    const setMock = mock((_val: any) => undefined);
     mockContextValue = setMock;
 
     useSetPromptOverlayDialog('my-new-node');
     const cleanup = effectFns[0]();
-    
+
     expect(setMock).toHaveBeenCalledWith('my-new-node');
 
     // evaluate cleanup
