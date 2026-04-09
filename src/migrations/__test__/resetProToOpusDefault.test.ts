@@ -1,4 +1,3 @@
-/* biome-ignore lint/style/useNamingConvention: matches original source names */
 import { describe, expect, it, mock, beforeEach } from 'bun:test';
 
 const mockLogEvent = mock();
