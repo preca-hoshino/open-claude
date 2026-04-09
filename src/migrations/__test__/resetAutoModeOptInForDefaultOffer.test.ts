@@ -28,7 +28,6 @@ mock.module('../../utils/log.js', () => ({
 }));
 
 mock.module('../../utils/permissions/permissionSetup.js', () => ({
-  // biome-ignore lint/style/useNamingConvention: matches original
   getAutoModeEnabledState: mockGetAutoModeState,
 }));
 

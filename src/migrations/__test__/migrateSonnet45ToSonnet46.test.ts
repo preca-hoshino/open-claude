@@ -75,7 +75,6 @@ describe('migrateSonnet45ToSonnet46', () => {
         expect(mockUpdateSettingsForSource).toHaveBeenCalledWith('userSettings', {
           model: testCase.expected,
         });
-        // biome-ignore lint/style/useNamingConvention: matches original
         expect(mockLogEvent).toHaveBeenCalledWith('tengu_sonnet45_to_46_migration', expect.any(Object));
       } else {
         expect(mockUpdateSettingsForSource).not.toHaveBeenCalled();
