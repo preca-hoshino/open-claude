@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, expect, it, mock } from 'bun:test';
-import * as React from 'react';
 
 // Must import original React up here because mock.module happens first
 const OriginalReact = await import('react');
@@ -13,9 +13,9 @@ mock.module('react', () => {
   };
 });
 
-const memoArray = new Array(20).fill(Symbol.for("react.memo_cache_sentinel"));
+const memoArray = new Array(20).fill(Symbol.for('react.memo_cache_sentinel'));
 mock.module('react/compiler-runtime', () => ({
-  c: (size: number) => memoArray,
+  c: (_size: number) => memoArray,
 }));
 
 import { QueuedMessageProvider, useQueuedMessage } from '../QueuedMessageContext.js';
@@ -27,7 +27,7 @@ describe('QueuedMessageContext', () => {
     const element = QueuedMessageProvider({
       isFirst: true,
       useBriefLayout: false,
-      children: 'test'
+      children: 'test',
     }) as any;
 
     expect(element.type).toBeDefined();
@@ -35,7 +35,7 @@ describe('QueuedMessageContext', () => {
     expect(element.props.value).toEqual({
       isQueued: true,
       isFirst: true,
-      paddingWidth: 4
+      paddingWidth: 4,
     });
   });
 
@@ -43,13 +43,13 @@ describe('QueuedMessageContext', () => {
     const element = QueuedMessageProvider({
       isFirst: false,
       useBriefLayout: true,
-      children: 'test2'
+      children: 'test2',
     }) as any;
 
     expect(element.props.value).toEqual({
       isQueued: true,
       isFirst: false,
-      paddingWidth: 0
+      paddingWidth: 0,
     });
   });
 
