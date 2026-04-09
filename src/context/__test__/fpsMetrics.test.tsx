@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, expect, it, mock } from 'bun:test';
-import * as React from 'react';
 
 // Must import original React up here because mock.module happens first
 const OriginalReact = await import('react');
@@ -13,9 +13,9 @@ mock.module('react', () => {
   };
 });
 
-const memoArray = new Array(20).fill(Symbol.for("react.memo_cache_sentinel"));
+const memoArray = new Array(20).fill(Symbol.for('react.memo_cache_sentinel'));
 mock.module('react/compiler-runtime', () => ({
-  c: (size: number) => memoArray,
+  c: (_size: number) => memoArray,
 }));
 
 import { FpsMetricsProvider, useFpsMetrics } from '../fpsMetrics.js';
@@ -45,7 +45,7 @@ describe('fpsMetrics', () => {
     expect(useFpsMetrics()).toBeUndefined();
 
     // With value
-    const val = () => ({ fps: 120 });
+    const val = () => ({ fps: 120, averageFps: 60, low1PctFps: 60 });
     mockContextValue = val;
     expect(useFpsMetrics()).toBe(val);
   });
