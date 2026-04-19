@@ -31,7 +31,6 @@ describe('buildQueryConfig', () => {
 
     const config = buildQueryConfig();
 
-     
     expect(config.sessionId).toBe('test-session-id' as any);
     expect(config.gates.streamingToolExecution).toBe(true);
     expect(config.gates.emitToolUseSummaries).toBe(true);
@@ -50,7 +49,6 @@ describe('buildQueryConfig', () => {
 
     const config = buildQueryConfig();
 
-     
     expect(config.sessionId).toBe('test-session-id' as any);
     expect(config.gates.streamingToolExecution).toBe(true);
     expect(config.gates.emitToolUseSummaries).toBe(false);
