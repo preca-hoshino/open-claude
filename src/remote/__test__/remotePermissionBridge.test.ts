@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-nocheck
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import type { SDKControlPermissionRequest } from '../../entrypoints/sdk/controlTypes.js';
 import { createSyntheticAssistantMessage, createToolStub } from '../remotePermissionBridge.js';

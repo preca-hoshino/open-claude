@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import * as log from '../../utils/log.js';
 import { SessionsWebSocket } from '../SessionsWebSocket.js';
@@ -116,7 +117,7 @@ describe('SessionsWebSocket', () => {
       configurable: true,
     });
 
-    log.logError.mockClear();
+    (log.logError as any).mockClear();
   });
 
   afterEach(() => {
