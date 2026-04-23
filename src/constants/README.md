@@ -1,35 +1,54 @@
-# 常量与全局配置模块 (`constants`)
+# src/constants — 常量与全局配置模块
 
-本模块存储了贯穿整个 Open-Claude 系统的核心配置声明。它不仅是一系列静态值的集合，更是定义系统边界、API 限制、身份认证路由、提示词（Prompt）工程以及工具沙箱策略的“规则中枢”。为了避免循环依赖，本项目中大量跨模块的契约（Contract）在此统一定义。
+> 项目总览：参见 [README.md](../../README.md)
 
-## 核心实现逻辑与文件说明
+## 简介
 
-### 1. 提示词引擎与上下文边界 (`prompts.ts`)
-- **动态组装机制**：`getSystemPrompt` 函数负责构建 Claude 的全局 System Prompt。该配置依据当前模型 (`modelId`)、功能开关（如 `PROACTIVE` 或 `KAIROS`）、工作区状态（如 Git Worktree）、及特定用户的组织标签（如 Ant 员工专用配置）动态生成。
-- **缓存边界 (`SYSTEM_PROMPT_DYNAMIC_BOUNDARY`)**：由于 System Prompt 是 Context Window 成本的大头，本模块强制切分了“全局静态常量”与“会话特定内容”。所有在此分界线前的字符都会在远端实现跨组织/跨用户的 Prompt Cache（极大降低成本），任何在此界线前的改动都必须极度谨慎，以防破坏缓存率（Cache Hit Rate）。
+本模块集中维护了系统运行所需的各类静态参数、默认值与配置字典。通过将散落的魔法字符串与魔法数字统一收敛于此，该模块保障了跨业务链路引用的安全性与维护性。它作为底层的纯数据承载层，服务于整个应用代码库的基础调用。
 
-### 2. 多重环境与认证网关 (`oauth.ts`)
-该文件支持多种网络平面的身份认证：
-- **组织/环境路由**：定义了 `prod` (api.anthropic.com)、`staging` (.ant.dev 内部网段) 以及 `local` 端口的环境配置。
-- **专有网络逃逸 (FedStart/PubSec)**：支持通过 `CLAUDE_CODE_CUSTOM_OAUTH_URL` 强行覆盖全局网关地址，但仅限在 `ALLOWED_OAUTH_BASE_URLS` 白名单内（如 FedStart 环境），防止 OAuth Token 被劫持或意外泄露。
-- **Scope 聚合**：区分了从 Console API 生成 Key 的权限 (`org:create_api_key`) 以及普通 Claude.ai 订阅者的全量权限（涵盖会话、文件上传与 MCP 桥接）。
+## 目录结构
 
-### 3. API 与物理边界保护 (`apiLimits.ts`)
-该模块定义了所有必须在**客户端侧进行前置拦截**的物理限制（防止直接将不合规负载抛给远端导致无意义的重试或错误）：
-- **图像**：最高 `5MB` Base64 编码限制（回推原始图片约 3.75MB），以及客户端 Resize 操作的最大尺寸界定（`2000px`）。
-- **PDF 与媒体**：定义了单次最高 `100` 个页面的限制、`20MB` 原始文件容量、以及 `3MB` PDF 抽取阈值（决定是走 Base64 Document Block 还是降级拆分为图像）。
-- **多媒体请求并发**：最多一次请求携带 `100` 个混合 Media Item。
+```text
+constants/
+├── apiLimits.ts              # API 调用的频率、超时及并发等硬限制
+├── betas.ts                  # Beta 功能及实验性特性的特性开关
+├── common.ts                 # 跨模块通用的基础常量
+├── cyberRiskInstruction.ts   # 涉及网络安全相关指令与过滤词表
+├── errorIds.ts               # 标准化的异常错误码字典
+├── figures.ts                # 终端输出使用的字符图标
+├── files.ts                  # 持久化文件与目录名的硬编码定义
+├── github-app.ts             # GitHub App 集成相关的常数
+├── keys.ts                   # 键盘绑定及快捷键对应的键值常量
+├── messages.ts               # 面向用户的系统提示与警告文案
+├── oauth.ts                  # OAuth 登录鉴权涉及的常量配置
+├── outputStyles.ts           # 终端高亮与着色样式的预设字典
+├── product.ts                # 产品自身的元信息
+├── prompts.ts                # 大模型提示词相关的常量与固定片段
+├── querySource.ts            # 查询来源标识符定义
+├── spinnerVerbs.ts           # 等待态随机轮播的动词词库
+├── system.ts                 # 系统级底层常量
+├── systemPromptSections.ts   # System Prompt 的组装分块定义
+├── toolLimits.ts             # 本地与远程工具执行的资源边界
+├── tools.ts                  # 系统内置工具的枚举与参数定义
+├── turnCompletionVerbs.ts    # 轮次结束时使用的标准动词表
+└── xml.ts                    # XML 解析相关的结构化常量
+```
 
-### 4. 工具隔离层与沙箱管控 (`tools.ts`)
-并不是所有的 Agent 都可以使用全量工具，这由本模块预配置的安全组决定：
-- **异步探员 (`ASYNC_AGENT_ALLOWED_TOOLS`)**：允许执行文件读写、Grep、Shell 等重型工具，但被严格禁止调用产生递归的工具（如 `AgentTool`，防止无限子代增殖）。
-- **协调者 (`COORDINATOR_MODE_ALLOWED_TOOLS`)**：只保留对探员的管理权与输出权（如 `TaskStop`，`Agent`），从而保证架构分层，主循环不做脏活。
+## 实现逻辑
 
-### 5. 遥测与指纹 (`system.ts`)
-- **计费与流量追踪**：`getAttributionHeader` 生成 `x-anthropic-billing-header`。
-- **Native 证明 (Attestation)**：如果是本地编译版，还会注入 `cch=00000` 占位符，由底层 C/Zig/Rust 网络库实时替换为哈希摘要，向服务端自证这是一次合法的终端 CLI 访问。
+本模块不包含动态业务流程与副作用，纯粹作为静态常量的命名空间。
+采用扁平化按领域（Domain）拆分文件的策略，所有文件均只包含 `export const` 声明。此设计防止单一配置大文件导致的加载臃肿，并能精准锁定修改边界，为类型推导提供可靠的编译期断言支持。
 
-## 维护规范
+## 新增 / 重构 / 删除向导
 
-1. **零依赖原则**：所有被提取进 `constants` 的文件必须保持最精简的依赖树。**绝对禁止**从 `src/constants/` 去引用 `src/tools/` 内部的运行时业务逻辑（仅允许引用 Prompt 字符串或 Type），否则会导致底层的严重循环依赖（Circular Dependencies）。
-2. **缓存破坏警告**：修改 `prompts.ts` 中的静态常量文案时（如代码审查指导、回答精简要求），务必确认该文案是全局通用还是只针对某些特定测试（如果针对特定测试，需写在 Dynamic Boundary 之后）。
+### 新增
+- 增加常量时，请归入对应的领域文件，严禁创建无意义的杂项文件。
+- 对于附带英文原词的复杂技术术语，必须在常量的 JSDoc 中提供英文标注与参考用例。
+
+### 重构
+- 严禁擅自修改已用于持久化存储或网络传输的枚举值，以防造成历史数据损坏。
+- 重构引用关系时，务必使用全局搜索验证所有下游调用方。
+
+### 删除
+- 在移除任何旧常量前，必须确保无任何上游模块仍在使用该字段。
+- 对于极具破坏性的变更，考虑使用废弃注解进行标记过渡。
