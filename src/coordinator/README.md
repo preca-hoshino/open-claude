@@ -2,40 +2,40 @@
 
 > 项目总览：参见 [README.md](../../README.md)
 > 
-> 相关模块：[`src/remote/`](../remote/README.md)（可能有远程通信涉及）或 [`src/query/`](../query/README.md)（协同查询）
+> 相关模块：[`src/remote/`](../remote/README.md)（涉及远程通信与代理分发）及 [`src/query/`](../query/README.md)（关联单节点的查询生命周期）
 
 ## 简介
 
-本模块用于支持高级的多代理协同（Multi-Agent Coordination）与分布式任务拆解执行架构。当系统面对复杂请求时，协调器能够将任务分配给不同的后台 Worker Agent 进行并行或流水线式处理，最后再将结果进行汇总整合。这代表了系统从“单体模型单兵作战”向“团队指挥调度”的范式演进。
+本模块构成了系统高级多代理协同架构（Multi-Agent Coordination）与分布式任务执行管线的核心。在应对高复杂度工程任务时，协调器能够将主线目标降维分解，并异步派发给不同的后台工作代理（Worker Agent）执行并行化运算或流水线构建，最终收敛聚合输出。此架构标志着系统由传统的单体串行推断模型向集群式的分布式代理调度范式转型。
 
 ## 目录结构
 
 ```text
 coordinator/
-├── __test__/                        # 协调器状态机与子代理通信逻辑的测试
-├── coordinatorMode.ts               # 主协调器模式的控制逻辑，包含派发规则、System Prompt 与运行时限制
-└── workerAgent.ts                   # 工作代理（子 Agent）的抽象与状态追踪
+├── __test__/                        # 协调器状态机与代理间异步通信逻辑的测试集
+├── coordinatorMode.ts               # 主调度节点控制层，管理任务分派协议、系统指令动态注入与权限沙箱边界
+└── workerAgent.ts                   # 工作节点的实体抽象与状态溯源追踪
 ```
 
-## 实现逻辑细节
+## 实现逻辑分析
 
-### 1. 动态协调器注入 (Coordinator System Prompt)
-`coordinatorMode.ts` 改变了大模型常规的扮演角色。一旦启用了 `COORDINATOR_MODE`，应用会注入一个极为详细的协调器专用 System Prompt（详见 `getCoordinatorSystemPrompt`）。在这个模式下，大模型不再亲自读写文件，而是通过一系列特权内部工具（如 `AgentTool`、`SendMessageTool` 和 `TaskStopTool`）像总指挥一样调度底层的 Worker 节点执行具体操作。
+### 1. 动态协调器状态空间注入 (Coordinator System Prompt)
+`coordinatorMode.ts` 的核心机制在于大模型执行上下文的重塑。当系统环境启用 `COORDINATOR_MODE` 后，应用将向主节点注入一个结构严密的特定指令集（System Prompt，由 `getCoordinatorSystemPrompt` 维护）。在该模式的约束下，大模型退出文件级代码编辑角色，转而通过一组高权限内部工具原语（包括 `AgentTool`、`SendMessageTool` 和 `TaskStopTool`）构建拓扑结构，作为总调度引擎异步驱动下层 Worker 节点实施具体的工程操作。
 
-### 2. 工具权限降维与沙箱隔离 (Capability Isolation)
-为了防止递归生成与权限滥用，协调器模式将主节点（Coordinator）和工作节点（Worker）的可用工具进行了严格区分。通过 `getCoordinatorUserContext`，Worker 节点被移除了如建立/删除团队（TeamCreate / TeamDelete）和合成输出（Synthetic Output）等元逻辑控制权限，只保留纯粹的工程工具（Bash、FileRead、FileEdit 等）以及外部引入的 MCP 服务。同时，协调器通过 `tengu_scratch` 开关向 Worker 暴露一个 Scratchpad 临时目录，用于进行代理间安全无阻的上下文资料交换。
+### 2. 工具集权限降级与沙箱执行域 (Capability Isolation)
+为规避多层嵌套派发过程中的死锁风险与权限放大（Privilege Escalation），协调器对自身（Coordinator）和工作节点（Worker）持有的合法工具集进行了严格的边界划分。通过 `getCoordinatorUserContext` 接口的动态过滤，Worker 节点被剥离了涉及团队生命周期管理（TeamCreate / TeamDelete）和虚拟输出合成（Synthetic Output）等高级系统抽象控制权限，强制约束其仅拥有基础工程工具（如文件操作接口与 Bash 终端）以及授权引入的外部 MCP 端点。同时，协调器通过 `tengu_scratch` 配置位为子节点挂载一个受控的持久化暂存目录（Scratchpad），以支撑不同 Agent 之间的隔离式异步数据共享。
 
-### 3. XML 规范化的异步信号流 (Task Notifications)
-在并行多开 Worker 后，协调器不会进行阻塞等待。当任何一个 Worker Agent 执行完毕（无论是成功 `completed`、执行失败 `failed` 还是被外力强杀 `killed`），系统都会构造一个标准的 `<task-notification>` 结构的 XML 消息插入到协调器的会话中枢。协调器通过解析这些带有 `<task-id>` 和 `<summary>` 的异步回传事件，决定是重构 Prompt 后通过 `SendMessage` 继续驱动该 Worker，还是开启全新的独立节点处理下一步。
+### 3. 基于 XML 语法的异步事件聚合 (Task Notifications)
+针对并发拉起 Worker 节点的场景，主调度器摒弃了传统的同步阻塞（Blocking Wait）机制。当子级 Worker Agent 进入终态（涵盖任务成功 `completed`、执行异常 `failed` 或外部抢占中断 `killed` 状态）时，系统底层引擎会封装一个基于标准的 `<task-notification>` XML 标记流结构异步推入主调度器的事件队列中。协调器通过反序列化包含任务指纹（`<task-id>`）与执行摘要（`<summary>`）的回调数据报，据此评估是重构当前指令并通过 `SendMessage` 复用存量上下文推进执行链，还是启动独立的全新执行节点接管容错流程。
 
-## 新增 / 重构 / 删除向导
+## 维护规范
 
-### 新增
-- 若希望加入新的并行任务通信范式（例如增加一种新的 Worker 汇报结构或新增特权工具），请在 `coordinatorMode.ts` 的提示词逻辑中进行全量的文档更新，以确保模型理解新工具的用法。
-- 必须在 `__test__` 中增加极端的并发条件和异常捕获用例，例如验证某个 Worker Agent 崩溃时协调器能否正确接收到 Error 报告并重试。
+### 新增规则
+- 当系统拟引入新型的并行计算通信拓扑（例如支持 P2P 的 Worker 数据流或新增权限工具链）时，须首先在 `coordinatorMode.ts` 内详尽更新系统提示词逻辑，确保模型具备针对新接口的调用推理能力。
+- 新增功能强制要求在 `__test__` 中补充覆盖高频并发场景及非预期状态转换的测试集合，例如验证某个 Worker Agent 发生资源耗尽型崩溃时，协调器是否能够稳定解析故障探针并执行容灾策略。
 
-### 重构
-- 更改 `matchSessionMode` 中关于 `CLAUDE_CODE_COORDINATOR_MODE` 环境变量翻转的逻辑时，请务必关注历史会话的恢复兼容性（Resumed Session），确保不会导致普通上下文错误地陷入 Coordinator 逻辑。
+### 重构规则
+- 若需修改 `matchSessionMode` 函数中针对 `CLAUDE_CODE_COORDINATOR_MODE` 环境变量流转的底层逻辑，须充分验证与历史休眠会话挂载机制（Resumed Session）的兼容性，严防普通会话实例（Normal Session）被错误路由至调度器执行平面。
 
-### 删除
-- 如果项目改变产品方向，决定废除复杂的多 Agent 架构而回归单体串行 Agent，则可安全废弃本模块，并清理 `src/query/` 及入口处有关 Coordinator 模式的启动分支判别。
+### 废弃规则
+- 若业务迭代需求将系统模型退化至轻量级的单体串行架构，开发团队可安全剥离并废除该模块实体。清理操作需伴随消除位于 `src/query/` 的协同逻辑桩块，以及系统自举入口处关于 Coordinator 模式判别参数的分支逻辑。
