@@ -1,53 +1,53 @@
-# src/migrations — 迁移脚本模块
+# src/migrations — 数据迁移与版本兼容模块
 
 > 项目总览：参见 [README.md](../../README.md)
 > 
-> 相关模块：[`src/server/README.md`](../server/README.md)（后端服务可能涉及数据库及设置）
+> 相关模块：[`src/server/README.md`](../server/README.md)（后端服务数据结构）
 
 ## 简介
 
-本模块包含项目的所有状态与配置迁移（Migrations）脚本。当应用的默认配置、数据结构、或是依赖的模型版本发生不兼容变更时，通过该目录下的迁移脚本来保证老版本用户的本地状态能够平滑升级。
+本模块提供系统版本迭代过程中的配置与状态迁移（Migrations）方案。当应用在数据结构、默认配置或上游依赖（如大语言模型 API 标识）发生非向后兼容（Non-backward Compatible）变更时，本模块中的脚本负责在程序初始化阶段将遗留的用户本地数据安全转换为最新标准格式。
 
 ## 目录结构
 
 ```text
 migrations/
-├── __test__/                                           # 针对各类迁移脚本的自动化测试文件
-├── migrateAutoUpdatesToSettings.ts                     # 迁移自动更新配置到统一设置文件
-├── migrateBypassPermissionsAcceptedToSettings.ts       # 迁移权限放行配置到统一设置文件
-├── migrateEnableAllProjectMcpServersToSettings.ts      # 迁移 MCP 服务启用状态配置
-├── migrateFennecToOpus.ts                              # 模型变更：从 Fennec 升级到 Opus
-├── migrateLegacyOpusToCurrent.ts                       # 模型变更：从 Legacy Opus 升级
-├── migrateOpusToOpus1m.ts                              # 模型变更：升级为支持 1M 上下文的 Opus
-├── migrateReplBridgeEnabledToRemoteControlAtStartup.ts # 迁移 REPL 桥接启用状态至远程控制设定
-├── migrateSonnet1mToSonnet45.ts                        # 模型变更：升级至 Sonnet 4.5
-├── migrateSonnet45ToSonnet46.ts                        # 模型变更：升级至 Sonnet 4.6
-├── resetAutoModeOptInForDefaultOffer.ts                # 重置默认提供的 Auto 模式相关状态
-└── resetProToOpusDefault.ts                            # 将 Pro 版默认模型重置为 Opus
+├── __test__/                                           # 迁移逻辑的自动化单元测试
+├── migrateAutoUpdatesToSettings.ts                     # 将更新策略迁移至系统环境变量配置
+├── migrateBypassPermissionsAcceptedToSettings.ts       # 权限越权配置的规范化迁移
+├── migrateEnableAllProjectMcpServersToSettings.ts      # MCP 服务注册状态的存储结构迁移
+├── migrateFennecToOpus.ts                              # 模型路由：Fennec 标识映射至 Opus
+├── migrateLegacyOpusToCurrent.ts                       # 模型路由：废弃 Opus 标识的标准化
+├── migrateOpusToOpus1m.ts                              # 模型路由：扩充上下文规格至 1M
+├── migrateReplBridgeEnabledToRemoteControlAtStartup.ts # REPL 桥接状态向远程控制标识的语义迁移
+├── migrateSonnet1mToSonnet45.ts                        # 模型路由：Sonnet 4.5 版本升级映射
+├── migrateSonnet45ToSonnet46.ts                        # 模型路由：Sonnet 4.6 版本升级映射
+├── resetAutoModeOptInForDefaultOffer.ts                # Auto 模式默认挂载状态的重置逻辑
+└── resetProToOpusDefault.ts                            # Pro 版本默认基座模型的重置逻辑
 ```
 
-## 实现逻辑细节
+## 实现逻辑分析
 
-### 1. 状态的安全迁移与降级回滚保护
-迁移脚本的执行高度依赖于底层的配置存取函数（如 `getGlobalConfig` 和 `getSettingsForSource`）。为了确保即使在用户本地环境极其恶劣或存储文件被锁定时，也不会因为迁移失败而导致整个应用崩溃（Crash Loop），所有迁移函数均被包裹在健壮的 `try-catch` 块中。失败时，系统将使用 `logError` 输出错误信息并触发遥测（`logEvent`），而不会向外抛出致命错误，确保主程序的强韧性。
+### 1. 迁移任务的异常捕获与隔离
+迁移任务在底层强依赖文件系统的 I/O 操作（通过 `getGlobalConfig` 和 `getSettingsForSource` 等接口）。为防范文件读写权限受限或并发进程持锁等边缘情况，所有的迁移函数均被封闭于严格的 `try-catch` 异常处理块中。发生抛错时，模块通过 `logError` 记录堆栈并通过 `logEvent` 上报诊断遥测，有效避免未捕获异常（Uncaught Exception）向上传递导致的主进程终止。
 
-### 2. 即时生效机制与旧配置清理
-以 `migrateAutoUpdatesToSettings.ts` 为例：迁移不仅负责将旧配置项（如废弃的 `autoUpdates` 参数）转存至新的配置文件存储中（转换为 `DISABLE_AUTOUPDATER` 环境变量设置），还会即时修改当前的运行时上下文（如直接写入 `process.env`），确保迁移在当前进程生命周期中立刻生效。迁移完成后，脚本会自动清理 `globalConfig` 中残留的冗余旧字段，保持配置体积的轻量化。
+### 2. 配置项的热应用与存储回收
+以 `migrateAutoUpdatesToSettings.ts` 的实现逻辑为例：该脚本首先将离散的配置参数序列化并转储为标准的环境变量字典（如 `DISABLE_AUTOUPDATER`）。写入持久化存储后，脚本会同步将该变量注入当前运行时内存（`process.env`），确保该策略在当前进程生命周期内即刻生效，无需重启进程。随后，系统执行对旧存储结构中冗余字段的内存释放与磁盘清理。
 
-### 3. 大模型代际切换的自动路由
-当后端提供的大模型服务（例如 Anthropic 宣布下线或替换某一代际模型）发生重大更迭时，由于客户端会缓存用户上次使用的模型 ID，如果不做处理就会导致 404 或非法请求报错。通过此类迁移脚本（如 `migrateSonnet1mToSonnet45`），系统在启动时会主动遍历用户保存的偏好列表。如果匹配到已被标记为弃用的模型名，将其安全映射更新到最新替代款，从而向用户屏蔽底层 API 变动带来的破坏性体验。
+### 3. 上游接口变更的模型路由重定向
+应对上游 API 提供商模型代际更替的场景，若直接下线旧模型会使客户端持有的缓存 ID 产生 HTTP 4xx 错误。本目录下的 `migrateSonnet*` 等脚本构建了一层拦截转换机制：在应用自举（Bootstrap）阶段遍历本地存储的偏好配置，匹配废弃正则模式，并将其指针重定向至推荐的对等新模型实例，从而屏蔽 API 迭代对客户端系统可用性的负面影响。
 
-## 新增 / 重构 / 删除向导
+## 维护规范
 
-### 新增
-- 当定义了新的且不兼容旧格式的配置存储，或上游接口弃用某个常用模型时，在此目录下新增对应的迁移脚本文件。
-- 新增脚本应在 `__test__` 中包含全面的向前/向后兼容性测试，确保新老版本状态交替时的严密逻辑。
-- 注意在系统启动逻辑（通常是 bootstrap 或应用初始化点）中注册并调用该新增迁移。
+### 新增规则
+- 引入不向后兼容的数据存储变更或涉及核心模型废弃时，必须提供独立的原子化迁移脚本。
+- 新增脚本需在 `__test__` 中提供完备的断言，覆盖包含旧格式解析、默认值兜底及幂等性（Idempotency）测试。
+- 迁移入口须在系统自举主函数链中进行显式注册。
 
-### 重构
-- 如果迁移框架或基础配置存取类接口改变，需要同步检查并重构本目录下所有涉及相关 API 读写的脚本。
-- 保证每个脚本拥有极高的健壮性，绝不能因为某一项 JSON 字段的类型反序列化失败导致后续流程阻断。
+### 重构规则
+- 若底层 I/O 驱动或配置序列化接口发生签名变更，须同步回归本目录下所有相关的持久化读写逻辑。
+- 脚本必须保持严格的局部作用域设计，禁止引入对其它非核心工具库的强耦合。
 
-### 删除
-- 在新版本中，某些极其古老的迁移脚本如果被证实对于 99% 的活跃用户已经执行完毕且无需长期保留，可以安全删除以减轻维护负担。
-- 删除时务必从启动调用链和测试套件中同时移除对应的引用。
+### 废弃规则
+- 对于生命周期已覆盖绝大多数活跃设备群体的历史迁移脚本，经遥测验证执行率达到指标后，可从代码库安全移除。
+- 执行清理时，须同时从注册链路及测试用例集合中注销对应的模块引用。
