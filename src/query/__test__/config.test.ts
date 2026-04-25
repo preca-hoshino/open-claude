@@ -22,11 +22,8 @@ describe('buildQueryConfig', () => {
 
   it('should build query config correctly when truthy flags are set', () => {
     process.env = { ...originalEnv };
-    // biome-ignore lint/style/useNamingConvention: env keys
     process.env.CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES = 'true';
-    // biome-ignore lint/style/useNamingConvention: env keys
     process.env.USER_TYPE = 'ant';
-    // biome-ignore lint/style/useNamingConvention: env keys
     process.env.CLAUDE_CODE_DISABLE_FAST_MODE = 'false';
 
     const config = buildQueryConfig();
@@ -40,11 +37,8 @@ describe('buildQueryConfig', () => {
 
   it('should handle falsy cases and other user types', () => {
     process.env = { ...originalEnv };
-    // biome-ignore lint/style/useNamingConvention: env keys
     process.env.CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES = 'false';
-    // biome-ignore lint/style/useNamingConvention: env keys
     process.env.USER_TYPE = 'employee';
-    // biome-ignore lint/style/useNamingConvention: env keys
     process.env.CLAUDE_CODE_DISABLE_FAST_MODE = 'true';
 
     const config = buildQueryConfig();

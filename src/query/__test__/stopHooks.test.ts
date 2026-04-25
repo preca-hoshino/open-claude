@@ -199,7 +199,6 @@ describe('stopHooks', () => {
   });
 
   it('handles job classifier and throws gracefully', async () => {
-    // biome-ignore lint/style/useNamingConvention: env keys
     process.env.CLAUDE_JOB_DIR = '/test/dir';
     classifyAndWriteStateMock.mockRejectedValue(new Error('classifier err'));
     const ctx = createContext({
